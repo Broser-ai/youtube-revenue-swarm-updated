@@ -8,6 +8,8 @@ export type TranslationKeys =
   | 'tab_wallet'
   | 'tab_profil'
   | 'tab_systems'
+  | 'tab_rewards'
+  | 'tab_marketplace'
   | 'hello'
   | 'scan_pkg'
   | 'aarhus'
@@ -115,6 +117,8 @@ const translations: Record<Language, Record<TranslationKeys, string>> = {
     tab_wallet: 'Wallet',
     tab_profil: 'Profil',
     tab_systems: 'Infra',
+    tab_rewards: 'Rewards',
+    tab_marketplace: 'Marketplace',
     hello: 'Hej',
     scan_pkg: 'Scan din emballage',
     aarhus: 'Aarhus Kommune',
@@ -221,6 +225,8 @@ const translations: Record<Language, Record<TranslationKeys, string>> = {
     tab_wallet: 'Wallet',
     tab_profil: 'Profile',
     tab_systems: 'Infra',
+    tab_rewards: 'Rewards',
+    tab_marketplace: 'Marketplace',
     hello: 'Hello',
     scan_pkg: 'Scan your packaging',
     aarhus: 'Aarhus Municipality',

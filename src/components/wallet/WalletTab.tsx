@@ -1,20 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle, X, Copy } from 'lucide-react';
+import { CheckCircle, CreditCard, Radio, ShieldCheck, ArrowRight, Smartphone, RefreshCw, Layers } from 'lucide-react';
 import { UserProfile, Transaction } from '../../types';
 import { useLanguage } from '../../lib/i18n';
 import { triggerHaptic, HapticPattern } from '../../lib/haptics';
 
 // Sub-components import
-import WeeklyHabitChart from './WeeklyHabitChart';
-import MaterialBreakdown from './MaterialBreakdown';
-import ImpactMetrics from './ImpactMetrics';
-import CommunityLeaderboard from './CommunityLeaderboard';
-import MembershipStatus from './MembershipStatus';
 import BalanceCard from './BalanceCard';
-import ReferralSection from './ReferralSection';
 import TransactionHistory from './TransactionHistory';
-import RewardOffersSection from './RewardOffersSection';
 
 interface WalletTabProps {
   user: UserProfile;
@@ -38,8 +31,8 @@ export default function WalletTab({ user, onChangeUser }: WalletTabProps) {
   });
 
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [shareText, setShareText] = useState('');
+  const [isNfcActive, setIsNfcActive] = useState(false);
+  const [nfcSuccess, setNfcSuccess] = useState(false);
 
   // Sync transactions state to localStorage
   useEffect(() => {
@@ -55,37 +48,27 @@ export default function WalletTab({ user, onChangeUser }: WalletTabProps) {
     setTxs(prev => [newTx, ...prev]);
   };
 
-  const handleShareImpact = async () => {
+  const handleTriggerNfc = () => {
     triggerHaptic(HapticPattern.LIGHT_TAP);
-    const co2Val = user.co2SavedKg.toFixed(2);
-    const drivingVal = (user.co2SavedKg * 8.2).toFixed(1);
-    const treesVal = Math.round(user.co2SavedKg * 16.6);
-    const bulbsVal = Math.round(user.co2SavedKg * 58);
-    const scansCount = user.scansCount;
+    setIsNfcActive(true);
+    setNfcSuccess(false);
 
-    const textDa = `🌱 Cirkel — Mit Grønne Regnskab 🌍\n\nJeg har sparet hele ${co2Val} kg CO₂e ved at genanvende ${scansCount} emballager med Cirkel! ♻️\n\nMin klimaindvirkning svarer til:\n🚗 Køre ${drivingVal} km mindre i bil\n🌳 Træ-absorptionsdage: ${treesVal} dage\n💡 Strøm til en LED-pære i ${bulbsVal} timer\n\nBliv en del af Danmarks grønneste fællesskab og modtag CP-belønninger for dit genbrug! 💚\n👉 Hent Cirkel i dag!`;
-
-    const textEn = `🌱 Cirkel — My Green Footprint 🌍\n\nI have prevented ${co2Val} kg of CO₂e emissions by recycling ${scansCount} packagings using Cirkel! ♻️\n\nMy environmental impact is equivalent to:\n🚗 Driving ${drivingVal} km less in a standard car\n🌳 Absorption power: ${treesVal} days of a mature tree\n💡 Powering an LED lightbulb for ${bulbsVal} hours\n\nJoin the future of circular consumption and help protect our planet! 💚\n👉 Get Cirkel today!`;
-
-    const finalText = language === 'da' ? textDa : textEn;
-    setShareText(finalText);
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: language === 'da' ? 'Min Cirkel Klimaindvirkning' : 'My Cirkel Ecological Impact',
-          text: finalText,
-        });
-        triggerHaptic(HapticPattern.SCAN_SUCCESS);
-        showSuccessToast(language === 'da' ? 'Delt med succes! 🎉' : 'Shared successfully! 🎉');
-      } catch (err) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setShowShareModal(true);
-        }
-      }
-    } else {
-      setShowShareModal(true);
-    }
+    // Simulate scanning/handshake over NFC/Bluetooth with smartbin
+    setTimeout(() => {
+      triggerHaptic(HapticPattern.SCAN_SUCCESS);
+      setNfcSuccess(true);
+      showSuccessToast(
+        language === 'da'
+          ? 'NFC-Kort parret med Cirkel Smart-Spand! Beholder åbnet. 🔓'
+          : 'NFC Card linked to Cirkel Smart Bin! Lid opened. 🔓'
+      );
+      
+      // Auto close after success
+      setTimeout(() => {
+        setIsNfcActive(false);
+        setNfcSuccess(false);
+      }, 1500);
+    }, 2200);
   };
 
   return (
@@ -108,10 +91,7 @@ export default function WalletTab({ user, onChangeUser }: WalletTabProps) {
         )}
       </AnimatePresence>
 
-      {/* 1. Membership Status Block */}
-      <MembershipStatus user={user} language={language} />
-
-      {/* 2. Main Balance & MobilePay Cash-out Block */}
+      {/* 1. Main Balance & MobilePay Cash-out Block */}
       <BalanceCard 
         user={user} 
         onChangeUser={onChangeUser} 
@@ -120,113 +100,157 @@ export default function WalletTab({ user, onChangeUser }: WalletTabProps) {
         onShowSuccessToast={showSuccessToast} 
       />
 
-      {/* 3. Personal Green Impact Metrics Dashboard */}
-      <ImpactMetrics 
-        user={user} 
-        language={language} 
-        onShareImpact={handleShareImpact} 
-      />
+      {/* 2. Interactive Digital Cirkel Member NFC Card */}
+      <div className="bg-white rounded-3xl p-5 border border-primary/5 shadow-xs flex flex-col gap-4">
+        <div>
+          <span className="text-[9px] font-black tracking-widest text-[#85A912] bg-[#85A912]/10 px-2 py-0.5 rounded border border-[#85A912]/25 uppercase">
+            NFC Digital Borger ID
+          </span>
+          <h3 className="text-sm font-black uppercase text-primary mt-2">
+            {language === 'da' ? 'Cirkel Digitale Medlemskort' : 'Cirkel Digital Member Card'}
+          </h3>
+          <p className="text-[10px] text-primary/50 font-bold mt-1">
+            {language === 'da' 
+              ? 'Hold din mobil tæt på Cirkels IoT Smart-Spande for automatisk at åbne dem og logge dine indleveringer' 
+              : 'Hold your mobile near Cirkel IoT Smart Bins to open them instantly and claim circular credits'}
+          </p>
+        </div>
 
-      {/* 4. Weekly Habits Bar Chart */}
-      <WeeklyHabitChart 
-        user={user} 
-        language={language} 
-      />
+        {/* High-fidelity CSS Card representation */}
+        <motion.div 
+          whileHover={{ scale: 1.02, rotate: -1 }}
+          whileTap={{ scale: 0.98 }}
+          className="relative h-48 rounded-2xl bg-gradient-to-tr from-primary to-slate-900 border border-white/10 text-white p-5 flex flex-col justify-between overflow-hidden shadow-md cursor-pointer"
+          onClick={handleTriggerNfc}
+        >
+          {/* Wave background decor */}
+          <div className="absolute right-0 top-0 w-44 h-44 bg-[#C8F24A]/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute left-1/4 bottom-0 w-32 h-32 bg-sky-300/5 rounded-full blur-xl pointer-events-none" />
 
-      {/* 5. Material Breakdown Donut Chart */}
-      <MaterialBreakdown 
-        user={user} 
-        language={language} 
-      />
+          <div className="flex justify-between items-start">
+            <div className="flex flex-col">
+              <span className="text-[13px] font-black tracking-tighter text-white">cirkel</span>
+              <span className="text-[7px] font-extrabold text-[#C8F24A] uppercase tracking-widest leading-none mt-0.5">Eco-Member Card</span>
+            </div>
+            <div className="flex items-center gap-1 bg-white/10 border border-white/15 px-2 py-0.5 rounded-lg text-[8px] font-mono font-black text-[#C8F24A]">
+              <Radio className="w-2.5 h-2.5 animate-pulse text-[#C8F24A]" />
+              <span>NFC ACTIVE</span>
+            </div>
+          </div>
 
-      {/* 6. Friends & Neighbors Community Leaderboard */}
-      <CommunityLeaderboard 
-        user={user} 
-        language={language} 
-        onShowSuccessToast={showSuccessToast} 
-      />
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-xs shadow-inner">
+              📱
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black uppercase tracking-wider text-white/50 leading-none">Borger Navn</span>
+              <span className="text-xs font-black text-white mt-1 leading-none">{user.fullName}</span>
+            </div>
+          </div>
 
-      {/* 7. Loyalty Discount Shop and Vouchers */}
-      <RewardOffersSection 
-        user={user} 
-        onChangeUser={onChangeUser} 
-        language={language} 
-        onAddTx={handleAddTx} 
-        onShowSuccessToast={showSuccessToast} 
-      />
+          <div className="flex justify-between items-end border-t border-white/10 pt-2.5">
+            <div className="flex flex-col">
+              <span className="text-[7.5px] font-black text-white/40 uppercase tracking-widest leading-none">Medlems ID</span>
+              <span className="text-[10px] font-mono font-black text-white mt-1 leading-none">
+                CP-DK-{user.id.substring(0, 8).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[7.5px] font-black text-white/40 uppercase tracking-widest leading-none">Sikkerhedsklasse</span>
+              <span className="text-[10px] font-black text-[#C8F24A] mt-1 leading-none flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                MitID Verified
+              </span>
+            </div>
+          </div>
+        </motion.div>
 
-      {/* 8. Viral Referral Rewards Card */}
-      <ReferralSection 
-        user={user} 
-        onChangeUser={onChangeUser} 
-        language={language} 
-        onAddTx={handleAddTx} 
-        onShowSuccessToast={showSuccessToast} 
-      />
+        {/* NFC Trigger action button */}
+        <button
+          id="trigger-nfc-card-btn"
+          onClick={handleTriggerNfc}
+          disabled={isNfcActive}
+          className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all ${
+            isNfcActive 
+              ? 'bg-primary/5 text-primary border border-primary/10' 
+              : 'bg-[#C8F24A] hover:bg-[#b5dc3e] text-primary shadow-sm active:scale-98'
+          }`}
+        >
+          {isNfcActive ? (
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>{language === 'da' ? 'Søger efter Smart-Spand...' : 'Looking for smart bin...'}</span>
+            </div>
+          ) : (
+            <>
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>{language === 'da' ? 'Simuler NFC Smart-Spand Parring' : 'Simulate NFC Smart-Bin Pairing'}</span>
+            </>
+          )}
+        </button>
+      </div>
 
-      {/* 9. Historic Activity Transaction Logs */}
+      {/* 3. Historic Activity Transaction Logs */}
       <TransactionHistory 
         txs={txs} 
         scansCount={user.scansCount} 
         language={language} 
       />
 
-      {/* Share Impact Modal Overlay */}
+      {/* NFC Pairing Modal Simulation */}
       <AnimatePresence>
-        {showShareModal && (
-          <div className="fixed inset-0 bg-primary/45 backdrop-blur-xs z-55 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        {isNfcActive && (
+          <div className="fixed inset-0 bg-[#002b49]/45 backdrop-blur-xs flex items-center justify-center p-6 z-55 animate-in fade-in duration-200">
             <motion.div
-              className="bg-white border border-gray-150 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative select-none flex flex-col gap-4 text-left"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white border border-slate-200 rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center gap-6 relative text-left"
             >
-              <button
-                id="close-share-modal-btn"
-                onClick={() => setShowShareModal(false)}
-                className="absolute right-4 top-4 w-8 h-8 border border-gray-150 rounded-full flex items-center justify-center hover:bg-gray-50 active:scale-90 cursor-pointer text-primary transition-all shadow-3xs"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="flex gap-2.5 items-center mt-3 text-left">
-                <span className="text-3xl filter drop-shadow-3xs text-left font-sans select-none animate-bounce">🌱</span>
-                <div>
-                  <h4 className="text-sm font-black text-primary uppercase tracking-wider">
-                    {language === 'da' ? 'Del Dit Grønne Regnskab' : 'Share Your Green Impact'}
-                  </h4>
-                  <p className="text-[10px] text-muted-text font-semibold">
-                    {language === 'da' ? 'Vis dine venner din personlige CO₂e-besparelse' : 'Show friends your personal carbon savings'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Text Area Card Preview */}
-              <div className="bg-emerald-50/40 border border-emerald-100 rounded-2xl p-4 text-left font-sans select-all cursor-default max-h-60 overflow-y-auto">
-                <span className="text-[9px] font-black text-emerald-800 uppercase tracking-widest block mb-2 leading-none">
-                  {language === 'da' ? 'FORHÅNDSVISNING AF DELING' : 'SHARE TEXT PREVIEW'}
+              <div>
+                <span className="text-[9px] font-black bg-primary/5 text-primary border border-primary/10 tracking-widest uppercase px-3 py-1 rounded-full">
+                  NFC Contactless Engine
                 </span>
-                <p className="text-[11px] text-primary font-bold whitespace-pre-wrap leading-relaxed">
-                  {shareText}
+                <h4 className="text-lg font-black text-primary uppercase tracking-wider mt-3">
+                  {language === 'da' ? 'Forbinder med Smart-Spand' : 'Pairing with Smart-Bin'}
+                </h4>
+                <p className="text-[9px] text-primary/60 font-bold mt-1">
+                  {language === 'da' ? 'Hold din telefon tæt på det grønne Cirkel logo på skraldespanden...' : 'Place your simulated device close to the smart waste-bin receptor...'}
                 </p>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-gray-100 font-sans">
-                <button
-                  id="copy-share-text-btn"
-                  onClick={() => {
-                    triggerHaptic(HapticPattern.LIGHT_TAP);
-                    navigator.clipboard.writeText(shareText);
-                    showSuccessToast(language === 'da' ? 'Kopieret til udklipsholder! 📋' : 'Copied to clipboard! 📋');
-                    setShowShareModal(false);
-                  }}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{language === 'da' ? 'Kopier & Luk' : 'Copy & Close'}</span>
-                </button>
+              {/* NFC visual loop */}
+              <div className="relative w-32 h-32 rounded-full border border-slate-100 flex items-center justify-center">
+                <div className={`absolute inset-0 rounded-full border-2 border-dashed ${nfcSuccess ? 'border-emerald-500 animate-none' : 'border-[#85A912] animate-spin'}`} style={{ animationDuration: '4s' }} />
+                
+                <div className="w-24 h-24 rounded-full bg-primary/5 flex items-center justify-center">
+                  {nfcSuccess ? (
+                    <motion.div
+                      initial={{ scale: 0.5 }}
+                      animate={{ scale: 1 }}
+                      className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg"
+                    >
+                      <CheckCircle className="w-7 h-7" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      animate={{ scale: [1, 1.15, 1], rotate: [0, 10, -10, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                      className="text-3xl"
+                    >
+                      📡
+                    </motion.div>
+                  )}
+                </div>
               </div>
+
+              <p className="text-[10px] text-primary font-black uppercase">
+                {nfcSuccess ? (
+                  <span className="text-emerald-700">✓ IoT Beholder Parret! Låget åbner</span>
+                ) : (
+                  "Udfører kryptografisk handshake..."
+                )}
+              </p>
             </motion.div>
           </div>
         )}

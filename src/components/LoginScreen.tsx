@@ -6,15 +6,19 @@ import {
 } from 'lucide-react';
 import { logInWithGoogle, logInWithEmail, registerWithEmail, isRealFirebase } from '../lib/firebase';
 import { useLanguage } from '../lib/i18n';
+import { triggerHaptic, HapticPattern } from '../lib/haptics';
 import MitIDAuth from './MitIDAuth';
 
 interface LoginScreenProps {
-  onLogin: (profile: UserProfile) => void;
+  onLogin: (profile: UserProfile, selectedMode?: 'citizen' | 'b2b' | 'muni') => void;
 }
 
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const { language, setLanguage, t } = useLanguage();
   
+  // Pilot Interface Mode Selection
+  const [pilotMode, setPilotMode] = useState<'citizen' | 'b2b' | 'muni'>('citizen');
+
   // Credentials Auth State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,7 +76,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             profile.isLoggedIn = true;
           }
           localStorage.setItem('cirkel_user', JSON.stringify(profile));
-          onLogin(profile);
+          onLogin(profile, pilotMode);
         }, 850);
       }
     }, 110);
@@ -171,7 +175,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       
       setTimeout(() => {
         setIsLoading(false);
-        onLogin(profile!);
+        onLogin(profile!, pilotMode);
       }, 800);
 
     } catch (err: any) {
@@ -218,7 +222,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       
       setTimeout(() => {
         setIsLoading(false);
-        onLogin(profile!);
+        onLogin(profile!, pilotMode);
       }, 800);
     } catch (err: any) {
       setIsLoading(false);
@@ -325,12 +329,68 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                     isMitIDVerified: true
                   };
                   localStorage.setItem('cirkel_user', JSON.stringify(demoProfile));
-                  onLogin(demoProfile);
+                  onLogin(demoProfile, pilotMode);
                 }}
                 className="w-full bg-[#85A912] hover:bg-[#739410] text-white font-extrabold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 shadow-sm"
               >
                 <span>🔓 Log direkte ind (Testkonto: Morten)</span>
               </button>
+            </div>
+
+            {/* 🖥️ INTERFACE/PORTAL MODE SELECTOR BLOCK */}
+            <div className="flex flex-col gap-2.5 bg-slate-50 border border-slate-150 p-4.5 rounded-2xl mb-5 text-left">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                {language === 'da' ? '1. VÆLG DIN PILOT-ROLLE:' : '1. SELECT YOUR PILOT ROLE:'}
+              </span>
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-200/50 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic(HapticPattern.LIGHT_TAP);
+                    setPilotMode('citizen');
+                  }}
+                  className={`py-2 px-1 text-[9.5px] font-black uppercase rounded-lg transition-all text-center leading-tight cursor-pointer ${
+                    pilotMode === 'citizen'
+                      ? 'bg-[#002b49] text-[#C8F24A] shadow-md'
+                      : 'text-slate-600 hover:text-[#002b49]'
+                  }`}
+                >
+                  📱 Borger App
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic(HapticPattern.LIGHT_TAP);
+                    setPilotMode('b2b');
+                  }}
+                  className={`py-2 px-1 text-[9.5px] font-black uppercase rounded-lg transition-all text-center leading-tight cursor-pointer ${
+                    pilotMode === 'b2b'
+                      ? 'bg-[#002b49] text-[#C8F24A] shadow-md'
+                      : 'text-slate-600 hover:text-[#002b49]'
+                  }`}
+                >
+                  💼 B2B Erhverv
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic(HapticPattern.LIGHT_TAP);
+                    setPilotMode('muni');
+                  }}
+                  className={`py-2 px-1 text-[9.5px] font-black uppercase rounded-lg transition-all text-center leading-tight cursor-pointer ${
+                    pilotMode === 'muni'
+                      ? 'bg-[#002b49] text-[#C8F24A] shadow-md'
+                      : 'text-slate-600 hover:text-[#002b49]'
+                  }`}
+                >
+                  🏛️ Kommune
+                </button>
+              </div>
+              <p className="text-[9.5px] font-bold text-slate-600 leading-normal text-center mt-1 bg-white p-2 rounded-lg border border-slate-100">
+                {pilotMode === 'citizen' && (language === 'da' ? '📱 Borger mobil app: Profil, Scan, Wallet, Rewards & Marketplace.' : '📱 Citizen mobile app: Profile, Scan, Wallet, Rewards & Marketplace.')}
+                {pilotMode === 'b2b' && (language === 'da' ? '💼 B2B Erhvervsportal: Emballageproducenter & returkampagner.' : '💼 B2B Enterprise Portal: Packaging producers & return campaigns.')}
+                {pilotMode === 'muni' && (language === 'da' ? '🏛️ Kommune Portal: Aarhus Kommune administrationspanel.' : '🏛️ Municipality Portal: Aarhus administrative control panel.')}
+              </p>
             </div>
 
             {notification && (

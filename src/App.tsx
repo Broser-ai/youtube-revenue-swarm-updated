@@ -5,12 +5,13 @@ import LoginScreen from './components/LoginScreen';
 import ScanTab from './components/ScanTab';
 import WalletTab from './components/wallet/WalletTab';
 import ProfilTab from './components/ProfilTab';
-import SystemsTab from './components/SystemsTab';
+import RewardsTab from './components/RewardsTab';
+import MarketplaceTab from './components/MarketplaceTab';
 import B2BPartnerDashboard from './components/B2BPartnerDashboard';
 import BiometricPrompt from './components/BiometricPrompt';
 import { 
   Camera, Wallet, User, Globe, HelpCircle, ShieldCheck, Landmark, Building2,
-  Bell, MapPin, Trash2, Smartphone, AlertTriangle, Clock
+  Bell, MapPin, Trash2, Smartphone, AlertTriangle, Clock, Award, ShoppingBag
 } from 'lucide-react';
 import { useLanguage } from './lib/i18n';
 import { triggerHaptic, HapticPattern } from './lib/haptics';
@@ -18,7 +19,7 @@ import { triggerHaptic, HapticPattern } from './lib/haptics';
 export default function App() {
   const { language, setLanguage, t } = useLanguage();
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [tab, setTab] = useState<'scan' | 'wallet' | 'profil' | 'systems'>('scan');
+  const [tab, setTab] = useState<'profil' | 'scan' | 'wallet' | 'rewards' | 'marketplace'>('scan');
   const [viewMode, setViewMode] = useState<'citizen' | 'b2b'>('b2b');
   const [isLoading, setIsLoading] = useState(true);
   const [isWalletUnlocked, setIsWalletUnlocked] = useState(false);
@@ -85,9 +86,21 @@ export default function App() {
     setIsLoading(false);
   }, []);
 
-  const handleLogin = (profile: UserProfile) => {
+  const handleLogin = (profile: UserProfile, selectedMode?: 'citizen' | 'b2b' | 'muni') => {
     setUser(profile);
-    setTab('scan');
+    if (selectedMode === 'citizen') {
+      setViewMode('citizen');
+      setTab('scan');
+    } else if (selectedMode === 'b2b') {
+      setViewMode('b2b');
+      localStorage.setItem('cirkel_b2b_tab', 'overview');
+    } else if (selectedMode === 'muni') {
+      setViewMode('b2b');
+      localStorage.setItem('cirkel_b2b_tab', 'muni');
+    } else {
+      setViewMode('citizen');
+      setTab('scan');
+    }
   };
 
   const handleLogout = async () => {
@@ -238,7 +251,7 @@ export default function App() {
               triggerHaptic(HapticPattern.LIGHT_TAP);
               setViewMode('citizen');
               showToast('Skiftede til Borger Mobil-Applikation!', 'info');
-              setTab('systems');
+              setTab('scan');
             }}
             className={`flex-1 md:flex-none text-[10px] font-black uppercase tracking-wider py-2 px-4 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               viewMode === 'citizen'
@@ -431,8 +444,14 @@ export default function App() {
                     onSimulateInactivity={handleSimulateInactivity}
                   />
                 )}
-                {tab === 'systems' && (
-                  <SystemsTab 
+                {tab === 'rewards' && (
+                  <RewardsTab 
+                    user={user} 
+                    onChangeUser={handleUpdateUser} 
+                  />
+                )}
+                {tab === 'marketplace' && (
+                  <MarketplaceTab 
                     user={user} 
                     onChangeUser={handleUpdateUser} 
                   />
@@ -444,6 +463,40 @@ export default function App() {
           {/* Bottom tab bar exactly like standard mobile bar */}
           <nav className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-250 py-3.5 px-6 flex justify-around items-center z-30 shadow-[0_-5px_15px_rgba(0,0,0,0.02)] rounded-t-3xl md:rounded-none">
             
+            <motion.button
+              id="tab-profil-btn"
+              onClick={() => {
+                triggerHaptic(HapticPattern.LIGHT_TAP);
+                setTab('profil');
+              }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.90 }}
+              transition={{ type: "spring", stiffness: 500, damping: 18 }}
+              className="flex flex-col items-center gap-1 cursor-pointer group shrink-0 focus:outline-none"
+            >
+              <motion.div 
+                animate={{ 
+                  scale: tab === 'profil' ? 1.05 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm relative ${
+                  tab === 'profil' 
+                    ? 'bg-primary text-accent' 
+                    : 'bg-primary/5 text-primary/60 group-hover:bg-primary/10'
+                }`}
+              >
+                <User className="w-5 h-5 shrink-0 z-10" />
+              </motion.div>
+              <motion.span 
+                animate={{ y: tab === 'profil' ? 1 : 0 }}
+                className={`text-[10px] font-black tracking-wider uppercase transition-colors ${
+                  tab === 'profil' ? 'text-primary' : 'text-primary/45'
+                }`}
+              >
+                {t('tab_profil')}
+              </motion.span>
+            </motion.button>
+
             <motion.button
               id="tab-scan-btn"
               onClick={() => {
@@ -513,10 +566,10 @@ export default function App() {
             </motion.button>
 
             <motion.button
-              id="tab-profil-btn"
+              id="tab-rewards-btn"
               onClick={() => {
                 triggerHaptic(HapticPattern.LIGHT_TAP);
-                setTab('profil');
+                setTab('rewards');
               }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.90 }}
@@ -525,32 +578,32 @@ export default function App() {
             >
               <motion.div 
                 animate={{ 
-                  scale: tab === 'profil' ? 1.05 : 1,
+                  scale: tab === 'rewards' ? 1.05 : 1,
                 }}
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm relative ${
-                  tab === 'profil' 
+                  tab === 'rewards' 
                     ? 'bg-primary text-accent' 
                     : 'bg-primary/5 text-primary/60 group-hover:bg-primary/10'
                 }`}
               >
-                <User className="w-5 h-5 shrink-0 z-10" />
+                <Award className="w-5 h-5 shrink-0 z-10" />
               </motion.div>
               <motion.span 
-                animate={{ y: tab === 'profil' ? 1 : 0 }}
+                animate={{ y: tab === 'rewards' ? 1 : 0 }}
                 className={`text-[10px] font-black tracking-wider uppercase transition-colors ${
-                  tab === 'profil' ? 'text-primary' : 'text-primary/45'
+                  tab === 'rewards' ? 'text-primary' : 'text-primary/45'
                 }`}
               >
-                {t('tab_profil')}
+                {t('tab_rewards')}
               </motion.span>
             </motion.button>
 
             <motion.button
-              id="tab-systems-btn"
+              id="tab-marketplace-btn"
               onClick={() => {
                 triggerHaptic(HapticPattern.LIGHT_TAP);
-                setTab('systems');
+                setTab('marketplace');
               }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.90 }}
@@ -559,24 +612,24 @@ export default function App() {
             >
               <motion.div 
                 animate={{ 
-                  scale: tab === 'systems' ? 1.05 : 1,
+                  scale: tab === 'marketplace' ? 1.05 : 1,
                 }}
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm relative ${
-                  tab === 'systems' 
-                    ? 'bg-primary text-[#C8F24A]' 
-                    : 'bg-primary/5 text-primary/60 hover:bg-primary/10'
+                  tab === 'marketplace' 
+                    ? 'bg-primary text-accent' 
+                    : 'bg-primary/5 text-[#6366f1]/10 text-primary/60 group-hover:bg-primary/10'
                 }`}
               >
-                <ShieldCheck className="w-5 h-5 shrink-0 z-10" />
+                <ShoppingBag className="w-5 h-5 shrink-0 z-10" />
               </motion.div>
               <motion.span 
-                animate={{ y: tab === 'systems' ? 1 : 0 }}
+                animate={{ y: tab === 'marketplace' ? 1 : 0 }}
                 className={`text-[10px] font-black tracking-wider uppercase transition-colors ${
-                  tab === 'systems' ? 'text-primary' : 'text-primary/45'
+                  tab === 'marketplace' ? 'text-primary' : 'text-primary/45'
                 }`}
               >
-                {t('tab_systems')}
+                {t('tab_marketplace')}
               </motion.span>
             </motion.button>
 

@@ -734,8 +734,15 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualName, setManualName] = useState('');
-  const [scanMode, setScanMode] = useState<'ai' | 'qr'>('ai');
+  const [scanMode, setScanMode] = useState<'ai' | 'qr' | 'nfc'>('ai');
   const [showScannerHelp, setShowScannerHelp] = useState(false);
+
+  // Web NFC State
+  const [isNfcScanning, setIsNfcScanning] = useState(false);
+  const [nfcError, setNfcError] = useState<string | null>(null);
+  const [isNfcSupported, setIsNfcSupported] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && 'NDEFReader' in window;
+  });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>({ lat: 56.1522, lng: 10.2037 });
   const [locatorMode, setLocatorMode] = useState<'smartbin' | 'station'>('smartbin');
 
@@ -1342,6 +1349,163 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
     }, 1150);
   };
 
+  // Web NFC Methods
+  const startNfcScan = async () => {
+    triggerHaptic(HapticPattern.MEDIUM_TAP);
+    setNfcError(null);
+    setIsNfcScanning(true);
+
+    if (typeof window === 'undefined' || !('NDEFReader' in window)) {
+      setNfcError(
+        language === 'da'
+          ? "Web NFC API er ikke understøttet i denne browser."
+          : "Web NFC API is not supported in this browser."
+      );
+      setIsNfcScanning(false);
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      const ndef = new NDEFReader();
+      await ndef.scan();
+      
+      const toastFn = onShowToast || (window as any).showToast;
+      if (toastFn) {
+        toastFn(
+          language === 'da'
+            ? "NFC-scanner aktiv! Placer telefonen tæt på genbrugsbeholderens NFC-mærke..."
+            : "NFC scanner active! Place your phone close to the recycling bin's NFC tag...",
+          "info"
+        );
+      }
+
+      // @ts-ignore
+      ndef.addEventListener("reading", ({ message, serialNumber }) => {
+        triggerHaptic(HapticPattern.SCAN_SUCCESS);
+        setIsNfcScanning(false);
+        
+        let parsedPayload = `NFC-ID: ${serialNumber || 'Unknown'}`;
+        try {
+          if (message.records && message.records.length > 0) {
+            const textDecoder = new TextDecoder();
+            const record = message.records[0];
+            if (record.data) {
+              parsedPayload = textDecoder.decode(record.data);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to decode NFC record payload", e);
+        }
+
+        handleNfcTagReading(parsedPayload, serialNumber || 'SN-NFC-DEFAULT');
+      });
+
+      // @ts-ignore
+      ndef.addEventListener("readingerror", () => {
+        triggerHaptic(HapticPattern.ERROR_PATTERN);
+        setNfcError(
+          language === 'da'
+            ? "Kunne ikke læse NFC-mærke. Prøv igen."
+            : "Could not read NFC tag. Please try again."
+        );
+        setIsNfcScanning(false);
+      });
+
+    } catch (err: any) {
+      console.error("NFC reading exception:", err);
+      triggerHaptic(HapticPattern.ERROR_PATTERN);
+      setNfcError(
+        language === 'da'
+          ? `NFC-fejl: ${err.message || 'Adgang nægtet eller hardware ikke klar'}`
+          : `NFC Error: ${err.message || 'Access denied or hardware not ready'}`
+      );
+      setIsNfcScanning(false);
+    }
+  };
+
+  const stopNfcScan = () => {
+    triggerHaptic(HapticPattern.LIGHT_TAP);
+    setIsNfcScanning(false);
+  };
+
+  const simulateNfcScan = (simulatedPayload: string) => {
+    triggerHaptic(HapticPattern.SCAN_START);
+    setIsNfcScanning(true);
+    setNfcError(null);
+
+    const toastFn = onShowToast || (window as any).showToast;
+    if (toastFn) {
+      toastFn(
+        language === 'da'
+          ? "Simulerer NFC-nærmethedssøgning..."
+          : "Simulating NFC proximity search...",
+        "info"
+      );
+    }
+
+    setTimeout(() => {
+      playScanSuccessFeedback();
+      setIsNfcScanning(false);
+      handleNfcTagReading(simulatedPayload, `SN-SIM-${Math.floor(100000 + Math.random() * 900000)}`);
+    }, 1200);
+  };
+
+  const handleNfcTagReading = (payload: string, serialNumber: string) => {
+    const isUrl = payload.startsWith('http://') || payload.startsWith('https://');
+    let binName = payload;
+    if (isUrl) {
+      binName = getQueryParam(payload, 'bin') || getQueryParam(payload, 'name') || payload.replace('https://', '').replace('http://', '').split('/')[0];
+    }
+
+    const cleanBinName = binName.replace(/_/g, ' ');
+    const toastFn = onShowToast || (window as any).showToast;
+
+    if (scanResult) {
+      const pant = parseFloat(scanResult.pantValue) || 0.35;
+      const points = 6;
+      
+      if (toastFn) {
+        toastFn(
+          language === 'da'
+            ? `NFC Verificeret! Emballage afleveret i ${cleanBinName} 📡`
+            : `NFC Verified! Packaging deposited in ${cleanBinName} 📡`,
+          'success',
+          scanResult.co2Saved
+        );
+      }
+      
+      triggerVerification(pant, points, `NFC: ${cleanBinName}`);
+    } else {
+      onChangeUser(prev => {
+        const updated = {
+          ...prev,
+          points: prev.points + 10,
+          scansCount: prev.scansCount + 1
+        };
+        localStorage.setItem('cirkel_user', JSON.stringify(updated));
+        return updated;
+      });
+
+      if (toastFn) {
+        toastFn(
+          language === 'da'
+            ? `Smart-Beholder åbnet via NFC! +10 CP Check-in Bonus 🎉`
+            : `Smart-Bin opened via NFC! +10 CP Check-in Bonus 🎉`,
+          'success'
+        );
+      }
+
+      setVerificationDetails({
+        label: `NFC: ${cleanBinName}`,
+        pant: 0,
+        points: 10
+      });
+      setShowVerificationCeleb(true);
+      triggerConfettiGoal();
+    }
+  };
+
   const startCamera = async () => {
     setCameraError(null);
     setIsCameraActive(true);
@@ -1370,7 +1534,7 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
 
   // Auto-start camera when ScanTab mounts, or when scanMode / phase changes
   useEffect(() => {
-    if (phase === 'ready') {
+    if (phase === 'ready' && scanMode !== 'nfc') {
       startCamera();
     } else {
       stopCamera();
@@ -1967,8 +2131,8 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
             </div>
           </div>
 
-          {/* Core Mode Selection (AI vs QR Scanner) */}
-          <div className="bg-primary/5 p-1 rounded-2xl flex gap-1 border border-primary/5 mb-2.5 shrink-0">
+          {/* Core Mode Selection (AI vs QR vs Web NFC) */}
+          <div className="bg-primary/5 p-1 rounded-2xl grid grid-cols-3 gap-1 border border-primary/5 mb-2.5 shrink-0">
             <button
               id="mode-ai-btn"
               onClick={() => {
@@ -1976,7 +2140,7 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
                 setScanMode('ai');
                 setManualName('');
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-black rounded-xl transition-all cursor-pointer uppercase tracking-wider ${
+              className={`flex items-center justify-center gap-1 py-2.5 text-[10px] font-black rounded-xl transition-all cursor-pointer uppercase tracking-wider ${
                 scanMode === 'ai'
                   ? 'bg-primary text-accent shadow-sm shadow-black/10'
                   : 'text-primary/60 hover:text-primary hover:bg-primary/5'
@@ -1991,13 +2155,28 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
                 setScanMode('qr');
                 setManualName('');
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-black rounded-xl transition-all cursor-pointer uppercase tracking-wider ${
+              className={`flex items-center justify-center gap-1 py-2.5 text-[10px] font-black rounded-xl transition-all cursor-pointer uppercase tracking-wider ${
                 scanMode === 'qr'
                   ? 'bg-primary text-accent shadow-sm shadow-black/10'
                   : 'text-primary/60 hover:text-primary hover:bg-primary/5'
               }`}
             >
               🔳 {t('qr_scanner')}
+            </button>
+            <button
+              id="mode-nfc-btn"
+              onClick={() => {
+                triggerHaptic(HapticPattern.LIGHT_TAP);
+                setScanMode('nfc');
+                setManualName('');
+              }}
+              className={`flex items-center justify-center gap-1 py-2.5 text-[10px] font-black rounded-xl transition-all cursor-pointer uppercase tracking-wider ${
+                scanMode === 'nfc'
+                  ? 'bg-primary text-accent shadow-sm shadow-black/10'
+                  : 'text-primary/60 hover:text-primary hover:bg-primary/5'
+              }`}
+            >
+              📶 Web NFC
             </button>
           </div>
 
@@ -2015,7 +2194,63 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
 
           {/* Core scan camera stage */}
           <div className="relative aspect-[4/3] bg-primary rounded-3xl overflow-hidden shadow-lg border border-primary/20 flex flex-col items-center justify-center text-center p-6 mb-6">
-            {isCameraActive ? (
+            {scanMode === 'nfc' ? (
+              <div className="flex flex-col items-center justify-center p-4 text-center w-full h-full text-white">
+                <div className="relative w-24 h-24 bg-accent/10 rounded-full flex items-center justify-center border border-accent/20 mb-4">
+                  {isNfcScanning ? (
+                    <>
+                      <div className="absolute inset-0 rounded-full border border-accent/30 animate-ping" />
+                      <div className="absolute -inset-4 rounded-full border border-accent/15 animate-ping [animation-delay:0.5s]" />
+                    </>
+                  ) : null}
+                  <span className="text-4xl">📶</span>
+                </div>
+
+                <div className="flex flex-col gap-1 max-w-sm mb-4">
+                  <h3 className="text-white font-extrabold text-lg flex items-center justify-center gap-1.5">
+                    Web NFC Modtager
+                  </h3>
+                  <div className="flex items-center justify-center gap-1.5 self-center mt-1 bg-white/5 border border-white/15 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider font-mono">
+                    <span className={`w-2 h-2 rounded-full ${isNfcSupported ? 'bg-emerald-500' : 'bg-amber-500'} ${isNfcScanning ? 'animate-pulse' : ''}`} />
+                    {isNfcSupported ? 'Web NFC API Understøttet ✓' : 'NFC API Ikke Understøttet (Simulering Aktiv)'}
+                  </div>
+                  <p className="text-white/60 text-xs mt-2 leading-relaxed px-4">
+                    {scanResult ? (
+                      <span className="text-[#C8F24A] font-bold">
+                        Hold din telefon tæt på genbrugsbeholderens NFC-brik for at verificere afleveringen af "{scanResult.productName}" og udløse den grønne bonus med det samme!
+                      </span>
+                    ) : (
+                      "Hold din telefon tæt på NFC-mærket på en intelligent Cirkel Smart-Spand for at åbne beholderen og lave check-in."
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 w-full max-w-xs">
+                  {isNfcScanning ? (
+                    <button
+                      id="stop-nfc-scan-btn"
+                      type="button"
+                      onClick={stopNfcScan}
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-black py-3 px-6 rounded-xl cursor-pointer transition-all active:scale-98"
+                    >
+                      Afbryd NFC-søgning ✖
+                    </button>
+                  ) : (
+                    <button
+                      id="start-nfc-scan-btn"
+                      type="button"
+                      onClick={startNfcScan}
+                      className="bg-accent hover:opacity-95 text-primary text-xs font-black py-3 px-6 rounded-xl shadow-md cursor-pointer transition-all active:scale-98 uppercase tracking-wider"
+                    >
+                      {isNfcSupported ? 'Scan Fysisk NFC Beholder 📶' : 'Aktiver NFC-Simulering 📶'}
+                    </button>
+                  )}
+                  {nfcError && (
+                    <p className="text-red-400 text-[10px] font-black uppercase mt-1 leading-normal font-mono bg-red-500/10 border border-red-500/15 py-1 px-3 rounded-lg">{nfcError}</p>
+                  )}
+                </div>
+              </div>
+            ) : isCameraActive ? (
               <div className="absolute inset-0 w-full h-full flex flex-col justify-between">
                 <video 
                   ref={videoRef}
@@ -2286,7 +2521,11 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
           {/* Quick preset selection based on current Scan Mode */}
           <div className="mb-6">
             <span className="text-xs font-bold text-muted-text uppercase tracking-wider block mb-2.5">
-              {scanMode === 'ai' ? 'Hurtig AI-test (uden kamera)' : 'Klik for at simulere QR-scanning (Interactive presets)'}
+              {scanMode === 'ai' 
+                ? 'Hurtig AI-test (uden kamera)' 
+                : scanMode === 'qr' 
+                  ? 'Klik for at simulere QR-scanning (Interactive presets)' 
+                  : 'Klik for at simulere Web NFC Smart-Beholder scanning'}
             </span>
             
             {scanMode === 'ai' ? (
@@ -2326,7 +2565,7 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : scanMode === 'qr' ? (
               <div className="grid grid-cols-2 gap-2">
                 {PRESET_QR_CODES.map((qr) => (
                   <button
@@ -2379,6 +2618,31 @@ export default function ScanTab({ user, onChangeUser, bal, onShowToast }: ScanTa
                     💡 <strong>Test af dublet-sikring:</strong> Afkod en unik tekst (f.eks. <code>pant-123</code>), gennemfør sorteringen, og indtast den samme tekst igen for at udløse sikkerhedsspærringen.
                   </span>
                 </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'dokk1', name: 'Cirkel Dokk1 IoT Smart-Spand', icon: '📡', payload: 'https://cirkel.app/bin/dokk1_smart_bin' },
+                  { id: 'banegaard', name: 'Cirkel Banegården IoT Smart-Spand', icon: '📡', payload: 'https://cirkel.app/bin/banegaard_smart_bin' },
+                  { id: 'salling', name: 'Cirkel Salling IoT Smart-Spand', icon: '📡', payload: 'https://cirkel.app/bin/salling_smart_bin' },
+                  { id: 'noerrebro', name: 'Cirkel Nørrebro IoT Smart-Spand', icon: '📡', payload: 'https://cirkel.app/bin/noerrebro_smart_bin' },
+                ].map((bin) => (
+                  <button
+                    id={`preset-nfc-${bin.id}-btn`}
+                    key={bin.id}
+                    onClick={() => simulateNfcScan(bin.payload)}
+                    className="bg-white border border-gray-200 hover:border-accent rounded-xl p-3 text-left transition-all active:scale-98 flex items-center gap-2.5 shadow-sm cursor-pointer"
+                  >
+                    <span className="text-xl bg-accent/10 w-9 h-9 rounded-lg flex items-center justify-center shrink-0">{bin.icon}</span>
+                    <div className="truncate">
+                      <p className="text-xs font-bold text-primary truncate">{bin.name}</p>
+                      <p className="text-[10px] text-accent-text font-black">Simuler NFC-Tag ✓</p>
+                    </div>
+                  </button>
+                ))}
+                <span className="col-span-2 text-[10px] text-muted-text font-medium px-2 block">
+                  💡 <strong>NFC Pilot-Test:</strong> Scan din emballage i AI- eller QR-tilstand først. Gå derefter til Web NFC og klik på en af IoT Smart-Spandene ovenfor for at simulere den lynhurtige kontaktløse registrering og modtage den højeste grønne pant udbetalt med det samme!
+                </span>
               </div>
             )}
           </div>
