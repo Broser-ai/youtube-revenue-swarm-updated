@@ -74,3 +74,10 @@ body {
   display: none;
 }
 
+.swarm-shell {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  background:
+    radial-gradient(circle at top right, rgba(200, 242, 74, 0.08), transparent 32%),
+    linear-gradient(180deg, #07070a 0%, #0b0b10 100%);
+}
+

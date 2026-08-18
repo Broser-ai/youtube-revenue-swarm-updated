@@ -23,6 +23,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "server.ts", "server/**/*.ts"],
   "exclude": ["src/backup/**/*", "src/backup"]
 }

@@ -70,3 +70,154 @@ export interface RewardOffer {
   cost: number;
   category?: 'coupon' | 'code' | 'award';
 }
+
+export type PartnerProgramKey =
+  | 'youtube_ypp'
+  | 'youtube_shorts'
+  | 'tiktok_rewards'
+  | 'meta_reels'
+  | 'x_ads_share'
+  | 'affiliate_epc';
+
+export type SwarmAgentId =
+  | 'orchestrator'
+  | 'alpha_trends'
+  | 'beta_scripts'
+  | 'gamma_visuals'
+  | 'delta_dispatch'
+  | 'epsilon_monetization'
+  | 'vault_officer'
+  | 'qa_auditor';
+
+export type AgentRunStatus = 'idle' | 'queued' | 'running' | 'complete' | 'error';
+
+export type MetricSource = 'estimate_catalog' | 'youtube_data_api' | 'user_input';
+
+export interface ApiErrorBody {
+  status: 'error';
+  code: 'INVALID_INPUT' | 'INVALID_URL' | 'UPSTREAM_UNAVAILABLE' | 'VAULT_MISSING' | 'GENERATION_FAILED';
+  missing: string[];
+  message: string;
+}
+
+export interface AgentState {
+  id: SwarmAgentId;
+  name: string;
+  role: string;
+  status: AgentRunStatus;
+  progress: number;
+  lastMessage: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface MetricTracker {
+  id: string;
+  partner: PartnerProgramKey;
+  views: number;
+  rpmUsd: number;
+  cpmUsd: number;
+  avdSeconds: number;
+  ctrPercent: number;
+  estimatedAdRevenueUsd: number;
+  estimatedAffiliateRevenueUsd: number;
+  recordedAt: string;
+  source: MetricSource;
+}
+
+export interface ChapterMarker {
+  timestamp: string;
+  title: string;
+}
+
+export interface AffiliatePlacement {
+  label: string;
+  url: string;
+  placement: 'description' | 'pinned_comment' | 'midroll_verbal' | 'end_screen';
+}
+
+export interface GeneratedPost {
+  id: string;
+  partner: PartnerProgramKey;
+  title: string;
+  hook: string;
+  script: string;
+  description: string;
+  tags: string[];
+  chapters: ChapterMarker[];
+  thumbnailPrompt: string;
+  pinnedComment: string;
+  cta: string;
+  affiliateLinks: AffiliatePlacement[];
+  estimatedMetrics: MetricTracker;
+}
+
+export interface TrendKeyword {
+  keyword: string;
+  partner: PartnerProgramKey;
+  searchVolumeLabel: string;
+  rpmHintUsd: number;
+  source: MetricSource;
+  sampleTitle?: string;
+  videoId?: string;
+}
+
+export interface VaultStatus {
+  gemini: boolean;
+  youtube: boolean;
+  tiktok: boolean;
+  meta: boolean;
+  x: boolean;
+  openai: boolean;
+}
+
+export interface DispatchPackage {
+  partner: PartnerProgramKey;
+  title: string;
+  body: string;
+  tags: string[];
+  pinnedComment: string;
+}
+
+export interface SwarmRunResult {
+  runId: string;
+  topic: string;
+  niche: string;
+  language: 'da' | 'en';
+  agents: AgentState[];
+  posts: GeneratedPost[];
+  metrics: MetricTracker[];
+  trends: TrendKeyword[];
+  dispatch: DispatchPackage[];
+  vault: VaultStatus;
+  qaFindings: string[];
+  youtubeLive: boolean;
+  youtubeNote: string | null;
+  createdAt: string;
+}
+
+export interface MonetizeRequest {
+  views: number;
+  niche: string;
+  ctrPercent: number;
+  affiliateEpcUsd?: number;
+}
+
+export interface MonetizeBreakdownRow {
+  partner: PartnerProgramKey;
+  views: number;
+  rpmUsd: number;
+  clicks: number;
+  adRevenueUsd: number;
+  affiliateRevenueUsd: number;
+  totalUsd: number;
+}
+
+export interface MonetizeResult {
+  niche: string;
+  source: MetricSource;
+  rows: MonetizeBreakdownRow[];
+  totalAdUsd: number;
+  totalAffiliateUsd: number;
+  totalUsd: number;
+}

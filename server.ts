@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { mountSwarmRoutes } from "./server/swarm/routes.ts";
 
 dotenv.config();
 
@@ -27,7 +28,7 @@ const ai = getGeminiClient();
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Setup parse limits for base64 image uploads
   app.use(express.json({ limit: "20mb" }));
@@ -390,6 +391,8 @@ Svar på et klart, pædagogisk, moderne og venligt dansk. Hold svarene relativt 
       res.status(500).json({ error: "Fejl under generering af chat-svar: " + error.message });
     }
   });
+
+  mountSwarmRoutes(app, ai);
 
   // Serve frontend assets
   if (process.env.NODE_ENV !== "production") {

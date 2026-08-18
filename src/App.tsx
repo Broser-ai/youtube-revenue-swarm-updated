@@ -9,9 +9,10 @@ import RewardsTab from './components/RewardsTab';
 import MarketplaceTab from './components/MarketplaceTab';
 import B2BPartnerDashboard from './components/B2BPartnerDashboard';
 import BiometricPrompt from './components/BiometricPrompt';
+import SwarmDashboard from './components/swarm/SwarmDashboard';
 import { 
   Camera, Wallet, User, Globe, HelpCircle, ShieldCheck, Landmark, Building2,
-  Bell, MapPin, Trash2, Smartphone, AlertTriangle, Clock, Award, ShoppingBag
+  Bell, MapPin, Trash2, Smartphone, AlertTriangle, Clock, Award, ShoppingBag, Radio
 } from 'lucide-react';
 import { useLanguage } from './lib/i18n';
 import { triggerHaptic, HapticPattern } from './lib/haptics';
@@ -20,7 +21,7 @@ export default function App() {
   const { language, setLanguage, t } = useLanguage();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [tab, setTab] = useState<'profil' | 'scan' | 'wallet' | 'rewards' | 'marketplace'>('scan');
-  const [viewMode, setViewMode] = useState<'citizen' | 'b2b'>('b2b');
+  const [viewMode, setViewMode] = useState<'citizen' | 'b2b' | 'swarm'>('b2b');
   const [isLoading, setIsLoading] = useState(true);
   const [isWalletUnlocked, setIsWalletUnlocked] = useState(false);
 
@@ -278,6 +279,22 @@ export default function App() {
             <Building2 className="w-3.5 h-3.5" />
             💼 B2B & Kommune Portal (Widescreen)
           </button>
+          <button
+            id="switch-view-swarm-btn"
+            onClick={() => {
+              triggerHaptic(HapticPattern.LIGHT_TAP);
+              setViewMode('swarm');
+              showToast('Skiftede til Multi-Partner Revenue Swarm!', 'success');
+            }}
+            className={`flex-1 md:flex-none text-[10px] font-black uppercase tracking-wider py-2 px-4 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              viewMode === 'swarm'
+                ? 'bg-zinc-950 text-amber-300 shadow-md'
+                : 'text-gray-550 hover:text-primary'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5" />
+            🎬 Revenue Swarm
+          </button>
         </div>
       </div>
 
@@ -285,6 +302,10 @@ export default function App() {
         /* Widescreen Desktop-grade B2B Partner Portal */
         <div className="w-full max-w-6xl bg-white border border-gray-200 md:rounded-[2rem] md:shadow-2xl overflow-hidden min-h-[750px] animate-in fade-in duration-300">
           <B2BPartnerDashboard user={user} onChangeUser={handleUpdateUser} />
+        </div>
+      ) : viewMode === 'swarm' ? (
+        <div className="w-full max-w-7xl border border-zinc-800 md:rounded-[2rem] md:shadow-2xl overflow-hidden min-h-[750px] animate-in fade-in duration-300">
+          <SwarmDashboard />
         </div>
       ) : (
         /* simulated mobile preview card to make the applet feel incredibly organic and polished */
